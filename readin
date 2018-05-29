@@ -1,0 +1,63 @@
+'''
+File that contains code to be able to get continuous data from the NeuroSky Mindwave EEG Headset through the RF-Dongle
+'''
+
+import json
+import time
+from telnetlib import Telnet
+import hashlib
+
+tn = Telnet('localhost', 13854)
+
+"""#One time authorization to establish connection:
+appKey = hashlib.sha256("Brainwave RC Car".encode('utf-8')).hexdigest() #appKey variable generates a SHA-1 code based on the appName that is needed to make the initial connection through ThinkGear Connector
+print(appKey) # prints appKey so that it can be copied into line below
+tn.write(b'{"appName": "Brainwave RC Car", "appKey": "ecbb003783e559b8707658d16af735648aeca2d10799bb7942e11b43d2554a6a"}') # actually establishes the one time, initial connection
+print("CONNECTED") # states that it is connected"""
+
+tn.write(b"{'enableRawOutput': true, 'format': 'Json'}\r") # talks to the device through the connection to setup the output and the decoding method
+
+eSenseDict = {'attention':0, 'meditation':0} # creates a dictionary so that the attention and meditation var's can be accessed later
+
+# creates the time limit var used in the while loop
+t = 500
+# creates the timediff var that is used to eventually exit the while loop based on a decided time limit, t
+timediff = 0
+# starts the clock so that the timediff var can be calculated and updated later
+start = time.clock();
+
+# while loop that works to continuously collect data from the headset for as long as the decided time, t
+while timediff < t:
+	# sets up the initial variables so they can be updated later
+	blinkStrength = 0
+	attention = 0
+	meditation = 0
+
+	# calculates and updates the timediff var used to eventually exit the loop after time, t
+	timediff = time.clock() - start
+	
+    # reads in the line of data from the headset based on the \r that the headset formats the output in
+	line = tn.read_until(b"\r")
+
+    # formats the line that was read before into a str
+	line = str(line)
+
+    # decodes the line into a dictionary using JSON
+	dict1 = json.loads(line[2:-3])
+	
+    # checks to see if blinkStrength is in the dictionary and if it is, updates the blinkStrength value
+	if "blinkStrength" in dict1:
+		blinkStrength = dict1['blinkStrength']
+    # checks to see if eSense is in the dictionary and if it is, updates the attention and meditation values
+	if "eSense" in dict1:
+        # sets the eSenseDict created earlier to the eSense in the dictionary taken from the headset, then updates the attention and meditation values from it
+		eSenseDict = dict1['eSense']
+		attention = eSenseDict['attention']
+		meditation = eSenseDict['meditation']
+			
+	if blinkStrength > 0 or attention > 0 or meditation > 0:
+		print ("Attention: " + str(attention))
+		print ("Meditation: " + str(meditation))
+		print ("Blink Strength: " + str(blinkStrength) + "\n")
+
+tn.close() # closes the connection
